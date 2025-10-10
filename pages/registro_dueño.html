@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Dueño - HelPet</title>
+    <link rel="stylesheet" href="../assets/css/registro.css">
+</head>
+<body>
+
+<header>
+    <div class="logo"><strong>HelPet</strong></div>
+    <nav>
+        <a href="../index.html">Inicio</a>
+        <a href="#">Paseadores</a>
+        <a href="#">Cómo Funciona</a>
+    </nav>
+</header>
+
+<div class="contenedor">
+    <div class="tarjeta">
+        <h2>Registro de Dueño</h2>
+        <form action="../php/registro_dueño.php" method="POST">
+            <label for="nombre">Nombre completo</label>
+            <input type="text" id="nombre" name="nombre" required>
+
+            <label for="email">Correo electrónico</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="telefono">Teléfono</label>
+            <input type="tel" id="telefono" name="telefono" required>
+
+            <label for="direccion">Dirección</label>
+            <input type="text" id="direccion" name="direccion" required>
+
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" required>
+
+            <button type="submit">Registrarme</button>
+        </form>
+        <p>¿Ya tienes una cuenta? <a href="login.html">Inicia sesión aquí</a></p>
+        <p>¿Quieres ser paseador? <a href="registro_paseador.html">Registrar</a></p>
+
+    </div>
+    
+</div>
+<footer>
+    <p>© 2025 HelPet - Todos los derechos reservados</p>
+</footer>
+
+</body>
+</html>

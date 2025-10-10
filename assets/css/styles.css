@@ -1,0 +1,217 @@
+/* ===== Reset y ajustes básicos ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #333;
+    line-height: 1.5;
+    background-color: #fafafa;
+}
+
+/* ===== Header ===== */
+header {
+    background-color: #2E86C1;
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+header nav a {
+    color: white;
+    margin: 0 12px;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+header nav a:hover {
+    text-decoration: underline;
+}
+
+/* ===== Hero ===== */
+.hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 50px 10%;
+    background-color: #EAF2F8;
+}
+
+.hero-text {
+    flex: 1;
+    min-width: 300px;
+    padding-right: 20px;
+}
+
+.hero-text h1 {
+    font-size: 2.2rem;
+    margin-bottom: 15px;
+}
+
+.hero-text p {
+    margin-bottom: 20px;
+    font-size: 1.1rem;
+}
+
+.hero-text button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.hero-text button:first-child {
+    background-color: #2E86C1;
+    color: white;
+}
+
+.hero-text button.secundario {
+    background-color: #555;
+    color: white;
+}
+
+.hero-img {
+    flex: 1;
+    min-width: 300px;
+}
+
+.hero-img img {
+    max-width: 100%;
+    border-radius: 10px;
+}
+
+/* ===== Paseadores destacados ===== */
+.paseadores {
+    padding: 50px 10%;
+    text-align: center;
+}
+
+.grid-paseadores {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.card h3 {
+    margin-top: 10px;
+    font-size: 1.1rem;
+}
+
+.card p {
+    color: #777;
+}
+
+/* ===== Cómo Funciona ===== */
+.como-funciona {
+    background-color: #F8F9F9;
+    padding: 50px 10%;
+    text-align: center;
+}
+
+.como-funciona .pasos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.como-funciona .pasos div {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.como-funciona img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* ===== Beneficios ===== */
+.beneficios {
+    padding: 50px 10%;
+    background-color: #fff;
+}
+
+.beneficios ul {
+    list-style-type: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.beneficios li {
+    background-color: #EAF2F8;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+/* ===== Galería ===== */
+.galeria {
+    padding: 50px 10%;
+    background-color: #F8F9F9;
+    text-align: center;
+}
+
+.grid-galeria {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.grid-galeria img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* ===== Footer ===== */
+footer {
+    background-color: #2E86C1;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    font-size: 0.9rem;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+    .hero {
+        flex-direction: column;
+    }
+    .hero-text {
+        padding-right: 0;
+        margin-bottom: 20px;
+    }
+}
