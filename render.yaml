@@ -1,7 +1,7 @@
 services:
   - type: web
-    name: helpet-php
+    name: helpet-back
     env: php
     plan: free
     buildCommand: ""
-    startCommand: php -S 0.0.0.0:10000 -t .
+    startCommand: php -S 0.0.0.0:10000 -t public
