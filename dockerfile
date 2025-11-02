@@ -1,8 +1,8 @@
 # Usa una imagen base de PHP con Apache
 FROM php:8.2-apache
 
-# Copia todos los archivos del proyecto al contenedor
-COPY . /var/www/html/
+# Copia el contenido de public/ al directorio web de Apache (CORREGIDO)
+COPY ./public/ /var/www/html/
 
 # Instala extensiones necesarias para MySQL
 RUN docker-php-ext-install mysqli pdo pdo_mysql
