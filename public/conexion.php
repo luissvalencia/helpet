@@ -1,12 +1,12 @@
 <?php
-// conexion.php — Configurado para Railway
+// conexion.php — Configurado para Railway desde Render
 
 class Database {
-    private $host = "mysql.railway.internal";
+    private $host = "metro.proxy.rlwy.net";
     private $db_name = "railway";
     private $username = "root";
     private $password = "hFkPvTClSJEJXfVjTWuLvXSkfxCKCKbt";
-    private $port = 3306;
+    private $port = 25195;
     public $conn;
 
     public function getConnection() {
@@ -16,13 +16,18 @@ class Database {
                 "mysql:host=" . $this->host . 
                 ";port=" . $this->port . 
                 ";dbname=" . $this->db_name . 
-                ";charset=utf8",
+                ";charset=utf8mb4",
                 $this->username,
                 $this->password,
-                array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION)
+                array(
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                )
             );
+            error_log("✅ Conexión a BD exitosa");
         } catch (PDOException $exception) {
             error_log("❌ Error de conexión: " . $exception->getMessage());
+            // No mostrar el error real en producción
             echo json_encode(["error" => "Error de conexión a la base de datos"]);
         }
         return $this->conn;
