@@ -1,7 +1,4 @@
 <?php
-session_start();
-
-
 // HEADERS PARA CORS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
@@ -14,47 +11,76 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // INCLUIR CONEXIÓN
-require_once '../config/database.php';
-session_start();
+require_once 'conexion.php';
 
-$database = new Database();
-$conn = $database->getConnection();
+try {
+    $database = new Database();
+    $conn = $database->getConnection();
 
-
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $nombre = htmlspecialchars(trim($_POST['nombre']));
-    $email = htmlspecialchars(trim($_POST['email']));
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $telefono = htmlspecialchars(trim($_POST['telefono']));
-    $direccion = htmlspecialchars(trim($_POST['direccion']));
-
-    if (empty($nombre) || empty($email) || empty($_POST['password'])) {
-        die("Por favor, complete todos los campos obligatorios.");
+    if (!$conn) {
+        echo json_encode(["success" => false, "message" => "Error de conexión a la base de datos"]);
+        exit;
     }
 
-    $sql_check = "SELECT id FROM Usuarios WHERE email = ?";
-    $stmt_check = $conn->prepare($sql_check);
-    $stmt_check->bind_param("s", $email);
-    $stmt_check->execute();
-    $stmt_check->store_result();
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        // Obtener datos desde JSON
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        $nombre = htmlspecialchars(trim($input['nombre'] ?? ''));
+        $email = htmlspecialchars(trim($input['email'] ?? ''));
+        $password = $input['password'] ?? '';
+        $telefono = htmlspecialchars(trim($input['telefono'] ?? ''));
+        $direccion = htmlspecialchars(trim($input['direccion'] ?? ''));
 
-    if ($stmt_check->num_rows > 0) {
-        die("El correo ya está registrado. Use otro.");
-    }
-    $stmt_check->close();
+        // Validar campos obligatorios
+        if (empty($nombre) || empty($email) || empty($password)) {
+            echo json_encode(["success" => false, "message" => "Por favor, complete todos los campos obligatorios."]);
+            exit;
+        }
 
-    $sql_insert = "INSERT INTO Usuarios (nombre, email, contraseña, telefono, direccion, created_at) 
-                   VALUES (?, ?, ?, ?, ?, NOW())";
-    $stmt_insert = $conn->prepare($sql_insert);
-    $stmt_insert->bind_param("sssss", $nombre, $email, $password, $telefono, $direccion);
+        // Validar formato de email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(["success" => false, "message" => "El formato del email no es válido."]);
+            exit;
+        }
 
-    if ($stmt_insert->execute()) {
-        echo json_encode(["success" => true, "message" => "Registro exitoso"]);
+        // 🔽 CORREGIDO: Usar PDO y nombre correcto de tabla (usuarios en minúsculas)
+        // Verificar si el email ya existe
+        $sql_check = "SELECT id FROM usuarios WHERE email = ?";
+        $stmt_check = $conn->prepare($sql_check);
+        $stmt_check->execute([$email]);
+        
+        if ($stmt_check->fetch()) {
+            echo json_encode(["success" => false, "message" => "El correo ya está registrado. Use otro."]);
+            exit;
+        }
+
+        // Hash de la contraseña
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+
+        // Insertar nuevo usuario
+        // 🔽 CORREGIDO: Usar nombre correcto de columna (contraseña con ñ)
+        $sql_insert = "INSERT INTO usuarios (nombre, email, contraseña, telefono, direccion, created_at) 
+                       VALUES (?, ?, ?, ?, ?, NOW())";
+        $stmt_insert = $conn->prepare($sql_insert);
+        
+        if ($stmt_insert->execute([$nombre, $email, $password_hash, $telefono, $direccion])) {
+            echo json_encode([
+                "success" => true, 
+                "message" => "Registro exitoso. Ahora puedes iniciar sesión."
+            ]);
+        } else {
+            echo json_encode(["success" => false, "message" => "Error al registrar usuario"]);
+        }
     } else {
-        echo json_encode(["success" => false, "message" => "Error al registrar usuario"]);
+        echo json_encode(["success" => false, "message" => "Método no permitido"]);
     }
 
-    $stmt_insert->close();
-    $conn->close();
+} catch (Exception $e) {
+    error_log("Error en registro_dueno: " . $e->getMessage());
+    echo json_encode([
+        "success" => false, 
+        "message" => "Error del servidor: " . $e->getMessage()
+    ]);
 }
 ?>

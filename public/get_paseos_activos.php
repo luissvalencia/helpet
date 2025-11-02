@@ -1,6 +1,4 @@
 <?php
-
-
 // HEADERS PARA CORS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
@@ -13,21 +11,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // INCLUIR CONEXIÓN
-require_once '../config/database.php';
+require_once 'conexion.php';
 
-$database = new Database();
-$conn = $database->getConnection();
+try {
+    $database = new Database();
+    $conn = $database->getConnection();
 
+    if (!$conn) {
+        echo json_encode(["success" => false, "message" => "Error de conexión a la base de datos"]);
+        exit;
+    }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $paseador_id = intval($_POST['paseador_id'] ?? 0);
+    // Obtener datos desde JSON
+    $input = json_decode(file_get_contents('php://input'), true);
+    $paseador_id = intval($input['paseador_id'] ?? 0);
 
     if ($paseador_id <= 0) {
         echo json_encode(["success" => false, "message" => "Falta el ID del paseador"]);
         exit;
     }
 
-    // ✅ CONSULTA CORREGIDA - Agrupar por paseo para evitar duplicados
+    // 🔽 CORREGIDO: Usar PDO en lugar de mysqli
     $sql = "
         SELECT 
             p.id AS paseo_id,
@@ -42,32 +46,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         INNER JOIN mascotas m ON m.id = pm.mascota_id
         WHERE p.paseador_id = ?
         AND (p.estado = 'aceptado' OR p.estado = 'en_curso')
-        GROUP BY p.id, p.fecha, u.id, u.nombre, p.estado  -- ✅ Agrupar por paseo, no por mascota
+        GROUP BY p.id, p.fecha, u.id, u.nombre, p.estado
         ORDER BY p.fecha DESC
     ";
 
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $paseador_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    $stmt->execute([$paseador_id]);
+    $paseos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $paseos = [];
-    while ($row = $result->fetch_assoc()) {
-        $paseos[] = [
-            "paseo_id" => intval($row["paseo_id"]),
-            "fecha" => $row["fecha"],
-            "estado" => $row["estado"],
-            "dueno_id" => intval($row["dueno_id"]),
-            "dueno_nombre" => $row["dueno_nombre"],
-            "mascotas" => $row["mascotas"]
-        ];
+    // Convertir IDs a enteros
+    foreach ($paseos as &$paseo) {
+        $paseo['paseo_id'] = intval($paseo['paseo_id']);
+        $paseo['dueno_id'] = intval($paseo['dueno_id']);
     }
 
     echo json_encode($paseos, JSON_UNESCAPED_UNICODE);
-    $stmt->close();
-    $conn->close();
 
-} else {
-    echo json_encode(["success" => false, "message" => "Método no permitido"]);
+} catch (Exception $e) {
+    error_log("Error en get_paseos_activos: " . $e->getMessage());
+    echo json_encode([
+        "success" => false, 
+        "message" => "Error del servidor",
+        "error" => $e->getMessage()
+    ]);
 }
 ?>
