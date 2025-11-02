@@ -1,6 +1,4 @@
 <?php
-
-
 // HEADERS PARA CORS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
@@ -13,56 +11,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // INCLUIR CONEXIÓN
-require_once '../config/database.php';
+require_once 'conexion.php';
 
-$database = new Database();
-$conn = $database->getConnection();
+try {
+    $database = new Database();
+    $conn = $database->getConnection();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $paseo_id = intval($_POST['paseo_id'] ?? 0);
-    $estado = $_POST['estado'] ?? '';
+    if (!$conn) {
+        echo json_encode(["success" => false, "message" => "Error de conexión a la base de datos"]);
+        exit;
+    }
+
+    // Obtener datos desde JSON
+    $input = json_decode(file_get_contents('php://input'), true);
+    $paseo_id = intval($input['paseo_id'] ?? 0);
+    $estado = $input['estado'] ?? '';
 
     if ($paseo_id <= 0 || empty($estado)) {
         echo json_encode(["success" => false, "message" => "Datos incompletos"]);
         exit;
     }
 
-    // ✅ BUSCAR PRIMERO EN PASEOS (PORQUE ESE ES EL ID QUE LLEGA DESDE FLUTTER)
-    $info = null;
+    // 🔽 CORREGIDO: Usar PDO en lugar de mysqli
+    // Buscar en paseos primero
+    $sql = "SELECT id, usuario_id, paseador_id, fecha, estado FROM paseos WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$paseo_id]);
+    $info = $stmt->fetch(PDO::FETCH_ASSOC);
+    
     $tipo = 'paseo';
     
-    // 1. Buscar en paseos (PRIMERO - porque Flutter envía IDs de paseos)
-    $stmt = $conn->prepare("
-        SELECT id, usuario_id, paseador_id, fecha, estado 
-        FROM paseos 
-        WHERE id = ?
-    ");
-    $stmt->bind_param("i", $paseo_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows > 0) {
-        $info = $result->fetch_assoc();
-        $tipo = 'paseo';
-    }
-    $stmt->close();
-
-    // 2. Si no se encontró en paseos, buscar en solicitudespaseo
+    // Si no se encontró en paseos, buscar en solicitudespaseo
     if (!$info) {
-        $stmt = $conn->prepare("
-            SELECT id, usuario_id, paseador_id, fecha, estado 
-            FROM solicitudespaseo 
-            WHERE id = ?
-        ");
-        $stmt->bind_param("i", $paseo_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            $info = $result->fetch_assoc();
-            $tipo = 'solicitud';
-        }
-        $stmt->close();
+        $sql = "SELECT id, usuario_id, paseador_id, fecha, estado FROM solicitudespaseo WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$paseo_id]);
+        $info = $stmt->fetch(PDO::FETCH_ASSOC);
+        $tipo = 'solicitud';
     }
 
     if (!$info) {
@@ -74,25 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $paseador_id = $info['paseador_id'];
     $fecha = $info['fecha'];
 
-    // ✅ SI ES UN PASEO EXISTENTE, ACTUALIZAR DIRECTAMENTE
+    // Si es un paseo existente, actualizar directamente
     if ($tipo === 'paseo') {
-        $updatePaseo = $conn->prepare("
-            UPDATE paseos 
-            SET estado = ?
-            WHERE id = ?
-        ");
-        $updatePaseo->bind_param("si", $estado, $paseo_id);
+        $sql = "UPDATE paseos SET estado = ? WHERE id = ?";
+        $stmt = $conn->prepare($sql);
         
-        if ($updatePaseo->execute()) {            
+        if ($stmt->execute([$estado, $paseo_id])) {            
             // También actualizar las solicitudes relacionadas si existen
-            $updateSolicitudes = $conn->prepare("
-                UPDATE solicitudespaseo 
-                SET estado = ? 
-                WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?
-            ");
-            $updateSolicitudes->bind_param("siis", $estado, $usuario_id, $paseador_id, $fecha);
-            $updateSolicitudes->execute();
-            $updateSolicitudes->close();
+            $sql = "UPDATE solicitudespaseo SET estado = ? WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$estado, $usuario_id, $paseador_id, $fecha]);
             
             echo json_encode([
                 "success" => true, 
@@ -102,69 +78,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             echo json_encode(["success" => false, "message" => "Error al actualizar paseo"]);
         }
-        $updatePaseo->close();
         
     } else {
-        // ✅ SI ES UNA SOLICITUD, MANEJAR COMO ANTES
-        $updateSolicitudes = $conn->prepare("
-            UPDATE solicitudespaseo 
-            SET estado = ? 
-            WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?
-        ");
-        $updateSolicitudes->bind_param("siis", $estado, $usuario_id, $paseador_id, $fecha);
-        $updateSolicitudes->execute();
-        $updateSolicitudes->close();
+        // Si es una solicitud, manejar como antes
+        $sql = "UPDATE solicitudespaseo SET estado = ? WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([$estado, $usuario_id, $paseador_id, $fecha]);
 
         if ($estado === 'aceptado') {
-            $checkPaseo = $conn->prepare("
-                SELECT id FROM paseos 
-                WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?
-            ");
-            $checkPaseo->bind_param("iis", $usuario_id, $paseador_id, $fecha);
-            $checkPaseo->execute();
-            $paseoExistente = $checkPaseo->get_result()->fetch_assoc();
-            $checkPaseo->close();
+            // Verificar si ya existe un paseo
+            $sql = "SELECT id FROM paseos WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$usuario_id, $paseador_id, $fecha]);
+            $paseoExistente = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$paseoExistente) {
-                $insertPaseo = $conn->prepare("
-                    INSERT INTO paseos (usuario_id, paseador_id, fecha, estado)
-                    VALUES (?, ?, ?, 'aceptado')
-                ");
-                $insertPaseo->bind_param("iis", $usuario_id, $paseador_id, $fecha);
-                $insertPaseo->execute();
-                $nuevoPaseoId = $insertPaseo->insert_id;
-                $insertPaseo->close();
+                // Crear nuevo paseo
+                $sql = "INSERT INTO paseos (usuario_id, paseador_id, fecha, estado) VALUES (?, ?, ?, 'aceptado')";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([$usuario_id, $paseador_id, $fecha]);
+                $nuevoPaseoId = $conn->lastInsertId();
 
-                $mascotasStmt = $conn->prepare("
-                    SELECT DISTINCT mascota_id FROM solicitudespaseo
-                    WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?
-                ");
-                $mascotasStmt->bind_param("iis", $usuario_id, $paseador_id, $fecha);
-                $mascotasStmt->execute();
-                $mascotasResult = $mascotasStmt->get_result();
+                // Obtener mascotas de la solicitud
+                $sql = "SELECT DISTINCT mascota_id FROM solicitudespaseo WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?";
+                $stmt = $conn->prepare($sql);
+                $stmt->execute([$usuario_id, $paseador_id, $fecha]);
+                $mascotas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                while ($mascota = $mascotasResult->fetch_assoc()) {
-                    $insertMascota = $conn->prepare("
-                        INSERT INTO paseos_mascotas (paseo_id, mascota_id)
-                        VALUES (?, ?)
-                    ");
-                    $insertMascota->bind_param("ii", $nuevoPaseoId, $mascota['mascota_id']);
-                    $insertMascota->execute();
-                    $insertMascota->close();
+                // Insertar mascotas en paseos_mascotas
+                foreach ($mascotas as $mascota) {
+                    $sql = "INSERT INTO paseos_mascotas (paseo_id, mascota_id) VALUES (?, ?)";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->execute([$nuevoPaseoId, $mascota['mascota_id']]);
                 }
-                $mascotasStmt->close();
             }
         }
 
         if (in_array($estado, ['en_curso', 'finalizado'])) {
-            $updatePaseo = $conn->prepare("
-                UPDATE paseos 
-                SET estado = ?
-                WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?
-            ");
-            $updatePaseo->bind_param("siis", $estado, $usuario_id, $paseador_id, $fecha);
-            $updatePaseo->execute();
-            $updatePaseo->close();
+            $sql = "UPDATE paseos SET estado = ? WHERE usuario_id = ? AND paseador_id = ? AND fecha = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$estado, $usuario_id, $paseador_id, $fecha]);
         }
 
         echo json_encode([
@@ -173,9 +126,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "tipo" => $tipo
         ]);
     }
-    
-    $conn->close();
-} else {
-    echo json_encode(["success" => false, "message" => "Método no permitido"]);
+
+} catch (Exception $e) {
+    error_log("Error en update_estado_paseo: " . $e->getMessage());
+    echo json_encode(["success" => false, "message" => "Error del servidor"]);
 }
 ?>

@@ -1,6 +1,4 @@
 <?php
-
-
 // HEADERS PARA CORS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
@@ -13,32 +11,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // INCLUIR CONEXIÓN
-require_once '../config/database.php';
+require_once 'conexion.php';
 
-$database = new Database();
-$conn = $database->getConnection();
+try {
+    $database = new Database();
+    $conn = $database->getConnection();
 
+    if (!$conn) {
+        echo json_encode(["success" => false, "message" => "Error de conexión a la base de datos"]);
+        exit;
+    }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $mascota_id = intval($_POST['mascota_id'] ?? 0);
+    // Obtener datos desde JSON
+    $input = json_decode(file_get_contents('php://input'), true);
+    $mascota_id = intval($input['mascota_id'] ?? 0);
 
     if ($mascota_id <= 0) {
         echo json_encode(["success" => false, "message" => "ID de mascota inválido"]);
         exit;
     }
 
-    $stmt = $conn->prepare("DELETE FROM mascotas WHERE id = ?");
-    $stmt->bind_param("i", $mascota_id);
-
-    if ($stmt->execute()) {
-        echo json_encode(["success" => true, "message" => "Mascota eliminada correctamente"]);
+    // 🔽 CORREGIDO: Usar PDO en lugar de mysqli
+    $sql = "DELETE FROM mascotas WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    
+    if ($stmt->execute([$mascota_id])) {
+        if ($stmt->rowCount() > 0) {
+            echo json_encode(["success" => true, "message" => "Mascota eliminada correctamente"]);
+        } else {
+            echo json_encode(["success" => false, "message" => "No se encontró la mascota"]);
+        }
     } else {
         echo json_encode(["success" => false, "message" => "Error al eliminar mascota"]);
     }
 
-    $stmt->close();
-    $conn->close();
-} else {
-    echo json_encode(["success" => false, "message" => "Método no permitido"]);
+} catch (Exception $e) {
+    error_log("Error en delete_mascota: " . $e->getMessage());
+    echo json_encode(["success" => false, "message" => "Error del servidor"]);
 }
 ?>
