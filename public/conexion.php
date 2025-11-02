@@ -1,6 +1,4 @@
 <?php
-// conexion.php — Configurado para Railway desde Render
-
 class Database {
     private $host = "metro.proxy.rlwy.net";
     private $db_name = "railway";
@@ -24,11 +22,10 @@ class Database {
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
                 )
             );
-            error_log("✅ Conexión a BD exitosa");
+            error_log("✅ Conexión a BD exitosa: $this->host:$this->port");
         } catch (PDOException $exception) {
             error_log("❌ Error de conexión: " . $exception->getMessage());
-            // No mostrar el error real en producción
-            echo json_encode(["error" => "Error de conexión a la base de datos"]);
+            return null;
         }
         return $this->conn;
     }
