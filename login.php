@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // INCLUIR CONEXIÓN
-require_once '../config/database.php';
+require_once 'conexion.php';
 session_start();
 
 $database = new Database();
@@ -40,19 +40,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Buscar usuario
     $sql = "SELECT * FROM $tabla WHERE email = ? LIMIT 1";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    $stmt->execute([$email]);
+    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($result->num_rows === 1) {
-        $usuario = $result->fetch_assoc();
-
+    if ($usuario) {
         if (password_verify($password, $usuario['contraseña'])) {
-            // Guardar sesión
-            $_SESSION['user_id'] = $usuario['id'];
-            $_SESSION['nombre'] = $usuario['nombre'];
-            $_SESSION['tipo_usuario'] = $tipo_usuario;
-
             echo json_encode([
                 "success" => true,
                 "message" => "Inicio de sesión exitoso",
@@ -67,8 +59,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         echo json_encode(["success" => false, "message" => "No se encontró una cuenta con ese correo."]);
     }
 
-    $stmt->close();
-    $conn->close();
+
 } else {
     echo json_encode(["success" => false, "message" => "Método no permitido."]);
 }
