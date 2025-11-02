@@ -16,8 +16,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $rawInput = file_get_contents('php://input');
     $input = json_decode($rawInput, true);
     
-    error_log("📨 Datos recibidos: " . print_r($input, true));
-    
     if (!isset($input['email']) || !isset($input['password']) || !isset($input['tipo_usuario'])) {
         echo json_encode(["success" => false, "message" => "Por favor, complete todos los campos."]);
         exit();
@@ -32,16 +30,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $conn = $database->getConnection();
 
         if (!$conn) {
-            error_log("❌ No hay conexión a BD");
             echo json_encode(["success" => false, "message" => "Error de conexión a la base de datos"]);
             exit();
         }
-        
-        error_log("✅ Conexión BD exitosa");
 
-        // Determinar tabla
-        $tabla = ($tipo_usuario === 'paseador') ? 'Paseadores' : 'Usuarios';
-        error_log("🔍 Buscando en tabla: $tabla, email: $email");
+        // 🔽 CORREGIDO: usar nombres reales de tablas (minúsculas)
+        $tabla = ($tipo_usuario === 'paseador') ? 'paseadores' : 'usuarios';
 
         // Buscar usuario
         $sql = "SELECT * FROM $tabla WHERE email = ? LIMIT 1";
@@ -50,17 +44,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($usuario) {
-            error_log("✅ Usuario encontrado: " . $usuario['email']);
+            // Verificar la columna de contraseña (puede ser 'contraseña' o 'password')
+            $password_column = 'contraseña'; // o 'password' dependiendo de tu BD
             
-            // Verificar si la columna de contraseña existe
-            if (!isset($usuario['contraseña'])) {
-                error_log("❌ Columna 'contraseña' no encontrada. Columnas disponibles: " . implode(', ', array_keys($usuario)));
-                echo json_encode(["success" => false, "message" => "Error en la estructura de la base de datos"]);
-                exit();
+            if (!isset($usuario[$password_column])) {
+                // Intentar con 'password' si 'contraseña' no existe
+                $password_column = 'password';
             }
             
-            if (password_verify($password, $usuario['contraseña'])) {
-                error_log("✅ Contraseña correcta");
+            if (isset($usuario[$password_column]) && password_verify($password, $usuario[$password_column])) {
                 echo json_encode([
                     "success" => true,
                     "message" => "Inicio de sesión exitoso",
@@ -69,16 +61,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     "tipo" => $tipo_usuario
                 ]);
             } else {
-                error_log("❌ Contraseña incorrecta");
                 echo json_encode(["success" => false, "message" => "Contraseña incorrecta."]);
             }
         } else {
-            error_log("❌ Usuario no encontrado: $email");
             echo json_encode(["success" => false, "message" => "No se encontró una cuenta con ese correo."]);
         }
     } catch (Exception $e) {
-        error_log("❌ Error en login: " . $e->getMessage());
-        echo json_encode(["success" => false, "message" => "Error del servidor: " . $e->getMessage()]);
+        error_log("Error en login: " . $e->getMessage());
+        echo json_encode(["success" => false, "message" => "Error del servidor."]);
     }
 
 } else {
